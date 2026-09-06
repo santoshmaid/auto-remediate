@@ -1,35 +1,36 @@
-'use strict'
-const AWS = require('aws-sdk')
+const { RDSClient, ModifyDBInstanceCommand } = require('@aws-sdk/client-rds')
 /**
 * Lambda function to enable Update Minor Version flag for AWS RDS
 *
 */
-module.exports.handler = (event, context, callback) => {
+const handler = async (event) => {
   console.log(' Update Minor Version for RDS - Received event:', JSON.stringify(event, null, 2))
   if (!event || !event.resource || !event.region) {
     return handleError('Invalid event')
   }
 
-  let params = {
+  const params = {
     DBInstanceIdentifier: event.resource,
     AutoMinorVersionUpgrade: true,
     ApplyImmediately: true
 
   }
 
-  let RDS = new AWS.RDS({region: event.region})
+  const RDS = new RDSClient({ region: event.region })
 
-  RDS.modifyDBInstance(params, function (err, result) {
-    if (err) {
-      console.log('Error', err)
-      return handleError(err.message ? err.message : 'Failed to modify DB Instance')
-    }
+  try {
+    const result = await RDS.send(new ModifyDBInstanceCommand(params))
     console.log('Result', result)
-    return callback(null, 'Successfully processed event')
-  })
+    return 'Successfully processed event'
+  } catch (err) {
+    console.log('Error', err)
+    return handleError(err.message ? err.message : 'Failed to modify DB Instance')
+  }
 
   function handleError (message) {
     message = message || 'Failed to process request.'
-    return callback(new Error(message))
+    throw new Error(message)
   }
 }
+
+module.exports = { handler }

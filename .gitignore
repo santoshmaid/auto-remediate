@@ -6,4 +6,10 @@ node_modules
 .idea
 coverage
 *.swp
-package-lock.json
+yarn.lock
+cdk.out
+
+# TypeScript compiled output
+*.d.ts
+bin/**/*.js
+lib/**/*.js

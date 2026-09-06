@@ -1,37 +1,43 @@
-'use strict'
 
-const AWS = require('aws-sdk')
+const { IAMClient, UpdateAccessKeyCommand } = require('@aws-sdk/client-iam')
 
 /**
  * Lambda function to deactivate access keys older than 90 days
  */
 
-module.exports.handler = (event, context, callback) => {
+const handler = async (event) => {
   console.log('AWS IAM Access Keys Rotation- 90 Days - Received event:', JSON.stringify(event, null, 2))
-
-  if (!event || !event.resource) {
+  if (!event || !event.resource || !event.extradata) {
     return handleError('Invalid event')
   }
 
-  let params = {
-    AccessKeyId: event.resource,
-    Status: 'Inactive'
+  const UserName = (event.extradata || []).filter(data => data.name === 'UserName')
+
+  if (UserName.length !== 1 && !UserName[0].value) {
+    return handleError('Cannot find IAM Username')
   }
 
-  let IAM = new AWS.IAM()
+  const params = {
+    AccessKeyId: event.resource,
+    Status: 'Inactive',
+    UserName: UserName[0].value
+  }
 
-  IAM.updateAccessKey(params, function (err, result) {
-    if (err) {
-      console.log('Error', err)
-      return handleError(err.message ? err.message : 'update Access Key failed')
-    }
+  const IAM = new IAMClient()
 
+  try {
+    const result = await IAM.send(new UpdateAccessKeyCommand(params))
     console.log('Result', result)
-    return callback(null, 'Successfully processed event')
-  })
+    return 'Successfully processed event'
+  } catch (err) {
+    console.log('Error', err)
+    return handleError(err.message ? err.message : 'update Access Key failed')
+  }
 
   function handleError (message) {
     message = message || 'Failed to process request.'
-    return callback(new Error(message))
+    throw new Error(message)
   }
 }
+
+module.exports = { handler }

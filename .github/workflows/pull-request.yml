@@ -1,0 +1,39 @@
+name: Lint and test
+
+on:
+  pull_request
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      ARTIFACTORY_TOKEN: ${{ secrets.ARTIFACTORY_TOKEN }}
+      ARTIFACTORY_TOKEN_EMAIL: ${{ secrets.ARTIFACTORY_TOKEN_EMAIL }}
+      ARTIFACTORY_URL: ${{ secrets.ARTIFACTORY_URL_VIRTUAL }}
+    steps:
+      - uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8 # refers to actions/checkout@v3.1.0
+        with:
+          persist-credentials: false
+
+      # Install Node.js
+      - uses: actions/setup-node@8c91899e586c5b171469028077307d293428b516 # refers to actions/setup-node@v3.5.1
+        with:
+          node-version: 24
+      
+      - run: npm i npm@11 -g
+      - run: npm config set registry https://$ARTIFACTORY_URL
+      - run: npm config set replace-registry-host npm.pkg.github.com
+      - run: npm config set //$ARTIFACTORY_URL:_auth "$(echo -n $ARTIFACTORY_TOKEN_EMAIL:$ARTIFACTORY_TOKEN | base64 -w 0)"
+      - run: npm config set //$ARTIFACTORY_URL:email "$ARTIFACTORY_TOKEN_EMAIL"
+
+      # Install your dependencies
+      - name: Installing package.json...
+        run: npm ci
+
+      # Run ESLint
+      - name: Running ESLint...
+        run: npm run lint
+
+      # Run Tests
+      - name: Running tests...
+        run: npm run test
